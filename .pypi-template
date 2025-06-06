@@ -1,0 +1,35 @@
+a_description_for_the_package: Track income & expenses vs expected/recurring changes.
+classifiers:
+- 'Topic :: Office/Business :: Financial :: Accounting'
+- 'License :: OSI Approved :: MIT License'
+- 'Programming Language :: Python :: 3'
+- 'Programming Language :: Python :: 3.9'
+- 'Programming Language :: Python :: 3.10'
+- 'Programming Language :: Python :: 3.11'
+- 'Programming Language :: Python :: 3.12'
+- 'Development Status :: 3 - Alpha'
+console_scripts:
+- fintrack=fintrack.__main__:cli
+first_year_of_publication: '2025'
+github_account: christophevg
+github_repo_name: fintrack
+keywords_describing_the_package: financial tracking forecasting
+license: MIT
+package_module_name: fintrack
+package_name: fintrack
+package_tagline: Track income & expenses vs expected/recurring changes.
+package_title: FinTrack
+readme: .github/README.md
+requires:
+- fire
+- python-dateutil
+scripts: []
+skip:
+- docs
+- tests
+- (package_module_name)
+version: 1.2.2
+your_author_name: Christophe VG
+your_email_address: contact@christophe.vg
+your_full_name: Christophe VG
+your_name: Christophe VG
