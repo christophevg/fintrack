@@ -24,6 +24,8 @@ CLASSIFIERS      = [
 INSTALL_REQUIRES = [
   "fire",
   "python-dateutil",
+  "pyaml",
+  "tabulate",
   
 ]
 ENTRY_POINTS = {

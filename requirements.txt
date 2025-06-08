@@ -1,3 +1,5 @@
 fire
 python-dateutil
+pyaml
+tabulate
 
