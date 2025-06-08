@@ -5,6 +5,12 @@ from fire import Fire
 import logging
 import os
 
+# load the environment variables for this setup from .env file
+from dotenv import load_dotenv
+load_dotenv()
+load_dotenv(".env")
+load_dotenv(".env.local")
+
 # setup logging to stdout
 
 LOG_LEVEL = os.environ.get("LOG_LEVEL") or "INFO"

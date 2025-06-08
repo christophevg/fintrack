@@ -22,9 +22,13 @@ package_title: FinTrack
 readme: .github/README.md
 requires:
 - fire
+- python-dotenv
 - python-dateutil
+- dateparser
+- humanize
 - pyaml
 - tabulate
+- colorama
 scripts: []
 skip:
 - docs

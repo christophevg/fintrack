@@ -1,5 +1,9 @@
 fire
+python-dotenv
 python-dateutil
+dateparser
+humanize
 pyaml
 tabulate
+colorama
 

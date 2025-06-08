@@ -4,20 +4,30 @@ from dataclasses import dataclass, field, asdict
 from collections import UserList
 
 from datetime import datetime
-from dateutil.parser import parse
+from dateparser import parse
+import humanize
 
 import uuid
 import bisect
 import json
 
 from tabulate import tabulate
+from colorama import Fore, Style, init
 
 import logging
 logger = logging.getLogger(__name__)
 
-DAY_FIRST = os.environ.get("DAY_FIRST", "yes").lower() in [ "yes", "true" ]
-if DAY_FIRST:
-  logging.debug("using a day-first approach")
+# reset coloring in between prints
+init(autoreset=True)
+
+DATE_ORDER = os.environ.get("DATE_ORDER", "DMY")
+if DATE_ORDER:
+  logging.debug(f"using a date order {DATE_ORDER}")
+
+DATE_LANG = os.environ.get("DATE_LANG", None)
+if DATE_LANG:
+  humanize.i18n.activate(DATE_LANG)
+  logging.debug(f"using date language {DATE_LANG}")
 
 def now():
   return datetime.now() # wrapped to be able to monkeypatch it in tests
@@ -44,7 +54,7 @@ class Record:
     is timestamp is a string, parse it
     """
     if not isinstance(self.timestamp, datetime):
-      self.timestamp = parse(self.timestamp, dayfirst=DAY_FIRST)
+      self.timestamp = parse(self.timestamp, settings={"DATE_ORDER": DATE_ORDER})
   
   def __lt__(self, other):
     return self.timestamp < other.timestamp
@@ -55,10 +65,15 @@ class Record:
     """
     value = getattr(self, key)
     if key == "timestamp":
-      return value.isoformat()
+      return humanize.naturalday(value)
     if key == "uid":
       return str(value)
     return value
+
+def colorize(value):
+  if value < 0:
+    return Fore.RED + str(value) + Style.RESET_ALL
+  return value
 
 class Records(UserList):
   """
@@ -82,14 +97,32 @@ class Records(UserList):
     new.extend(other)
     return new
 
-  def show(self):
+  def columns(self, with_balance=True):
+    c = Record.columns.copy()
+    if with_balance:
+      c.insert(c.index("amount")+1, "balance")
+    return c
+
+  def rows(self, with_balance=True):
+    balance = 0
+    r = []
+    for record in self:
+      balance += record["amount"]
+      r.append([
+        colorize(balance) if column == "balance" else record[column]
+        for column in self.columns(with_balance=with_balance)
+      ])
+    return r
+
+  def show(self, with_balance=True):
     if not len(self):
       logger.warning("no records available")
       return
-    return tabulate([
-      [ record[column] for column in Record.columns ]
-      for record in self
-    ], Record.columns, tablefmt="grid")
+    return tabulate(
+      self.rows(with_balance=with_balance),
+      self.columns(with_balance=with_balance),
+      tablefmt="grid"
+    )
 
 class RecordEncoder(json.JSONEncoder):
   def default(self, obj):

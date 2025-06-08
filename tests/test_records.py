@@ -1,6 +1,8 @@
 from freezegun import freeze_time
 from datetime import datetime
 
+import re
+
 import json
 
 from fintrack.recorders import Record, Records, RecordEncoder
@@ -79,16 +81,26 @@ def test_records_tabulation():
     Record(-125, "test record 2", timestamp="7/6 12:00", uid="2"),
     Record(-125, "test record 3", timestamp="7/6 13:00", uid="3")
   ])
-  print(records.show())
-  assert records.show() == """+---------------------+----------+---------------+-------+
-| timestamp           |   amount | description   |   uid |
-+=====================+==========+===============+=======+
-| 2025-06-06T00:00:00 |      125 | test record 1 |     1 |
-+---------------------+----------+---------------+-------+
-| 2025-06-07T12:00:00 |     -125 | test record 2 |     2 |
-+---------------------+----------+---------------+-------+
-| 2025-06-07T13:00:00 |     -125 | test record 3 |     3 |
-+---------------------+----------+---------------+-------+"""
+  assert records.show(with_balance=False) == """+-------------+----------+---------------+-------+
+| timestamp   |   amount | description   |   uid |
++=============+==========+===============+=======+
+| Jun 06      |      125 | test record 1 |     1 |
++-------------+----------+---------------+-------+
+| yesterday   |     -125 | test record 2 |     2 |
++-------------+----------+---------------+-------+
+| yesterday   |     -125 | test record 3 |     3 |
++-------------+----------+---------------+-------+"""
+  ansi = r'\x1b\[[\d;]+m'
+  table = re.sub(ansi,"", records.show())
+  assert table == """+-------------+----------+-----------+---------------+-------+
+| timestamp   |   amount |   balance | description   |   uid |
++=============+==========+===========+===============+=======+
+| Jun 06      |      125 |       125 | test record 1 |     1 |
++-------------+----------+-----------+---------------+-------+
+| yesterday   |     -125 |         0 | test record 2 |     2 |
++-------------+----------+-----------+---------------+-------+
+| yesterday   |     -125 |      -125 | test record 3 |     3 |
++-------------+----------+-----------+---------------+-------+"""
 
 def test_recordencoder():
   try:
@@ -96,5 +108,4 @@ def test_recordencoder():
     assert False, "expected encoder to fail on non-Record objecttype"
   except TypeError:
     pass
-
   

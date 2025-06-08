@@ -23,9 +23,13 @@ CLASSIFIERS      = [
 ]
 INSTALL_REQUIRES = [
   "fire",
+  "python-dotenv",
   "python-dateutil",
+  "dateparser",
+  "humanize",
   "pyaml",
   "tabulate",
+  "colorama",
   
 ]
 ENTRY_POINTS = {
