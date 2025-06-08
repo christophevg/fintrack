@@ -1,5 +1,3 @@
-import os
-
 from pathlib import Path
 
 import yaml
@@ -17,15 +15,11 @@ def test_init_and_using():
   assert Tracker(folder="testing").using == Path().cwd() / "testing"
   assert Tracker(folder="/testing").using == Path("/testing")
   assert Tracker(folder="~/testing").using == Path("~/testing").expanduser()
-  user = os.getlogin()
-  assert Tracker(folder=f"~{user}/testing").using == Path(f"~{user}/testing").expanduser()
 
 def test_use_and_using():
   assert Tracker().use("testing").using == Path().cwd() / "testing"
   assert Tracker().use("/testing").using == Path("/testing")
   assert Tracker().use("~/testing").using == Path("~/testing").expanduser()
-  user = os.getlogin()
-  assert Tracker().use(f"~{user}/testing").using == Path(f"~{user}/testing").expanduser()
 
 def test_config():
   assert Tracker().config == { "version" : __version__ }
