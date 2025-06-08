@@ -1,3 +1,5 @@
+import sys
+
 from pathlib import Path
 
 import yaml
@@ -91,6 +93,16 @@ class Tracker:
     """
     self.add(Record(*args, **kwargs))
 
+  def slurp(self, source=sys.stdin):
+    """
+    reads tab separated rows from stdin and imports them as records
+    """
+    for line in source:
+      line = line.strip()
+      if not line:
+        break
+      self.record(*line.split("\t"))
+
   def __iter__(self):
     for record in self.records:
       yield record
@@ -100,3 +112,5 @@ class Tracker:
   
   def __getitem__(self, index):
     return self.records[index]
+
+  

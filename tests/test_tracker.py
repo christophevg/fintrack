@@ -71,4 +71,19 @@ def test_load(tmp_path):
   assert tracker[0].amount == -125 
   assert tracker[0].description == "test load"
 
+def test_slurp(tmp_path):
+  input = """600,21	Start	Thu, 1 May 2025
+  -€ 32,34	test 123	Sun, 11 May 2025
+  -€ 14,60	test 456	Sun, 11 May 2025"""
+
+  tracker = Tracker(tmp_path)
+  tracker.slurp(source=input.split("\n"))
+  rows = tracker.records.rows(with_color=False)
+  # ignore uids
+  rows = [ row[:-1] for row in rows ]
+  assert rows == [
+    [ "May 01", 600.21, 600.21, "Start"    ],
+    [ "May 11", -32.34, 567.87, "test 123" ],
+    [ "May 11", -14.6,  553.27, "test 456" ]
+  ]
   

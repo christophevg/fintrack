@@ -1,4 +1,5 @@
 import os
+import re
 
 from dataclasses import dataclass, field, asdict
 from collections import UserList
@@ -29,11 +30,21 @@ if DATE_LANG:
   humanize.i18n.activate(DATE_LANG)
   logging.debug(f"using date language {DATE_LANG}")
 
+DECIMAL_POINT = os.environ.get("DECIMAL_POINT", ",")
+
 def now():
   return datetime.now() # wrapped to be able to monkeypatch it in tests
 
 def uid():
   return str(uuid.uuid4()) # wrapped to be able to monkeypatch it in tests
+
+def parse_amount(amount):
+  # remove everything that shouldn't be in there
+  if DECIMAL_POINT == ".":
+    amount = re.sub("[^\d.-]","", amount)
+  else:
+    amount = re.sub(DECIMAL_POINT, ".", re.sub(f"[^\d{DECIMAL_POINT}-]","", amount))
+  return float(amount)
 
 @dataclass
 class Record:
@@ -51,8 +62,10 @@ class Record:
   
   def __post_init__(self):
     """
-    is timestamp is a string, parse it
+    if amount or timestamp are a string, parse it
     """
+    if isinstance(self.amount, str):
+      self.amount = parse_amount(self.amount)
     if not isinstance(self.timestamp, datetime):
       self.timestamp = parse(self.timestamp, settings={"DATE_ORDER": DATE_ORDER})
   
@@ -69,11 +82,6 @@ class Record:
     if key == "uid":
       return str(value)
     return value
-
-def colorize(value):
-  if value < 0:
-    return Fore.RED + str(value) + Style.RESET_ALL
-  return value
 
 class Records(UserList):
   """
@@ -103,7 +111,15 @@ class Records(UserList):
       c.insert(c.index("amount")+1, "balance")
     return c
 
-  def rows(self, with_balance=True):
+  def rows(self, with_balance=True, with_color=True):
+
+    def colorize(value):
+      if not with_color:
+        return value
+      if value < 0:
+        return Fore.RED + str(value) + Style.RESET_ALL
+      return value
+
     balance = 0
     r = []
     for record in self:
