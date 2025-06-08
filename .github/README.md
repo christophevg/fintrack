@@ -7,7 +7,7 @@
 ![Build Status](https://github.com/christophevg/fintrack/actions/workflows/test.yaml/badge.svg)
 [![Documentation Status](https://readthedocs.org/projects/fintrack/badge/?version=latest)](https://fintrack.readthedocs.io/en/latest/?badge=latest)
 [![Coverage Status](https://coveralls.io/repos/github/christophevg/fintrack/badge.svg?branch=master)](https://coveralls.io/github/christophevg/fintrack?branch=master)
-[![Built with PyPi Template](https://img.shields.io/badge/PyPi_Template-v1.2.2-blue.svg)](https://github.com/christophevg/pypi-template)
+[![Built with PyPi Template](https://img.shields.io/badge/PyPi_Template-v1.3.0-blue.svg)](https://github.com/christophevg/pypi-template)
 
 
 
