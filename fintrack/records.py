@@ -42,6 +42,8 @@ class Record:
       self.amount = parse_amount(self.amount)
     if not isinstance(self.timestamp, datetime):
       self.timestamp = parse(self.timestamp, settings={"DATE_ORDER": DATE_ORDER})
+    if self.uid is None:
+      self.uid = uid()
   
   def __lt__(self, other):
     return self.timestamp < other.timestamp
