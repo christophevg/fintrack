@@ -26,6 +26,7 @@ INSTALL_REQUIRES = [
   "python-dotenv",
   "python-dateutil",
   "dateparser",
+  "recurrent",
   "humanize",
   "pyaml",
   "tabulate",

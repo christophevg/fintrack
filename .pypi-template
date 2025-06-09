@@ -25,6 +25,7 @@ requires:
 - python-dotenv
 - python-dateutil
 - dateparser
+- recurrent
 - humanize
 - pyaml
 - tabulate
