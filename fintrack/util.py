@@ -2,22 +2,33 @@ import os
 
 import re
 
+from dataclasses import is_dataclass, asdict, fields
+
+import json
+
+from dateparser import parse
 from datetime import datetime
 import uuid
 
 import humanize
+
+from collections import UserList
+import bisect
+import numbers
+
+from decimal import Decimal
 
 import logging
 logger = logging.getLogger(__name__)
 
 DATE_ORDER = os.environ.get("DATE_ORDER", "DMY")
 if DATE_ORDER:
-  logging.debug(f"using a date order {DATE_ORDER}")
+  logger.debug(f"using a date order {DATE_ORDER}")
 
 DATE_LANG = os.environ.get("DATE_LANG", None)
 if DATE_LANG:
   humanize.i18n.activate(DATE_LANG)
-  logging.debug(f"using date language {DATE_LANG}")
+  logger.debug(f"using date language {DATE_LANG}")
 
 DECIMAL_POINT = os.environ.get("DECIMAL_POINT", ",")
 
@@ -28,9 +39,107 @@ def uid():
   return str(uuid.uuid4()) # wrapped to be able to monkeypatch it in tests
 
 def parse_amount(amount):
-  # remove everything that shouldn't be in there
-  if DECIMAL_POINT == ".":
-    amount = re.sub("[^\d.-]","", amount)
+  if not isinstance(amount, numbers.Number):
+    # remove everything that shouldn't be in there
+    if DECIMAL_POINT == ".":
+      amount = re.sub(r'[^\d.-]',"", amount)
+    else:
+      amount = re.sub(DECIMAL_POINT, ".", re.sub(r'[^\d'+f"{DECIMAL_POINT}-]","", amount))
+  return Decimal(amount)
+
+def parse_datetime(dt_str):
+  return parse(dt_str, settings={"DATE_ORDER": DATE_ORDER})
+
+class Ordered(UserList):
+  """
+  a list of objects of a provided type, kept sorted on append including when
+  combined
+  """
+  def __init__(self, obj_type, *args, **kwargs):
+    if not isinstance(obj_type, type):
+      raise TypeError(f"invalid object type: {obj_type}")
+    self._obj_type = obj_type
+    super().__init__(*args, **kwargs)
+
+  def __iter__(self):
+    for obj in self.data:
+      yield obj
+
+  def append(self, obj):
+    if not isinstance(obj, self._obj_type):
+      raise TypeError(f"rows can only be of {self._obj_type} type")
+    bisect.insort(self.data, obj)
+
+  def extend(self, other):
+    for obj in other:
+      self.append(obj)
+
+  def __add__(self, other):
+    new = self.__class__(self._obj_type, self)
+    new.extend(other)
+    return new
+
+class ClassEncoder(json.JSONEncoder):
+  def default(self, obj):
+    if isinstance(obj, Ordered):
+      return list(obj)
+    if is_dataclass(obj):
+      return asdict(obj)
+    if isinstance(obj, datetime):
+      return obj.isoformat()
+    if isinstance(obj, Decimal):
+      return str(obj)
+    return super().default(obj)
+
+def ClassDecoder(cls):
+  class WrappedClassDecoder(json.JSONDecoder):
+    def __init__(self, *args, **kwargs):
+      self.cls = cls
+      self.types = { field.name : field.type for field in fields(self.cls) }
+      super().__init__(object_hook=self.object_hook, *args, **kwargs)
+
+    def object_hook(self, dct):
+      for key, value in dct.items():
+        if self.types.get(key, None) is datetime:
+          dct[key] = datetime.fromisoformat(value)
+      return self.cls(**dct)
+  return WrappedClassDecoder
+
+def get_columns(obj):
+  try:
+    # should be a Record or a PlannedRecord, which exposes its columns
+    return list(obj.columns)
+  except AttributeError:
+    try:
+      # maybe it's a plain dataclass?
+      return [ fld.name for fld in fields(obj) ]
+    except TypeError:
+      try:
+        # maybe it's a plain dict?
+        return list(obj.keys())
+      except AttributeError:
+        # no clue 🤷‍♂️
+        logger.error(f"can't extract columns from {obj}")
+        pass
+  return []
+
+def humanized(value):
+  if isinstance(value, datetime):
+    return humanize.naturalday(value)
+  if isinstance(value, Decimal):
+    return float(value)
+  return value
+
+def asrow(obj):
+  if isinstance(obj, dict):
+    d = obj.copy()
   else:
-    amount = re.sub(DECIMAL_POINT, ".", re.sub(f"[^\d{DECIMAL_POINT}-]","", amount))
-  return float(amount)
+    # should be a dataclass then
+    try:
+      d = asdict(obj)
+    except TypeError:
+      logger.warning(f"don't know how to make a dict of {obj}")
+      d = None
+  if d:
+    return [ humanized(d[key]) for key in get_columns(obj) ]
+  return None

@@ -7,14 +7,20 @@ import json
 
 import logging
 
-from fintrack import __version__
-from fintrack.records import Record, Records, RecordEncoder, RecordDecoder
+from fintrack            import __version__
+from fintrack.records    import Record, balanced
+from fintrack.plans      import PlannedRecord
+from fintrack.util       import Ordered, ClassEncoder, ClassDecoder
+from fintrack.ui.tabular import Tabular
 
 logger = logging.getLogger(__name__)
 
 class Tracker:
   def __init__(self, folder="~/.fintrack"):
-    self.records = Records()
+    self._records  = Ordered(Record)
+    self._plans    = Ordered(PlannedRecord)
+    self._scope    = None
+    self._balanced = False
     self.use(folder)
     
   def version(self):
@@ -35,6 +41,37 @@ class Tracker:
     return {
       "version" : __version__
     }
+
+  @property
+  def records(self):
+    self._scope = self._records
+    return self
+
+  @property
+  def plans(self):
+    self._scope = self._plans
+    return self
+
+  def future(self, until="next month"):
+    self._scope = Ordered(Record)
+    for plan in self._plans:
+      self._scope = self._scope + Ordered(Record, plan.take(until=until))
+    return self
+
+  @property
+  def overview(self):
+    self._scope = self._records
+    for plan in self._plans:
+      self._scope = self._scope + Ordered(Record, plan.take(until="next month"))
+    return self
+
+  def balanced(self):
+    self._balanced = True
+    return self
+
+  @property
+  def table(self):
+    return Tabular(self._scope, balanced=balanced if self._balanced else None)
 
   def use(self, folder):
     """
@@ -58,7 +95,11 @@ class Tracker:
 
     # save records
     with (self._folder / "records.json").open("w") as fp:
-      json.dump(self.records, fp, cls=RecordEncoder, indent=2)
+      json.dump(self._records, fp, cls=ClassEncoder, indent=2)
+
+    # save plans
+    with (self._folder / "plans.json").open("w") as fp:
+      json.dump(self._plans, fp, cls=ClassEncoder, indent=2)
 
     return self
 
@@ -76,22 +117,35 @@ class Tracker:
     # load records
     try:
       with (self._folder / "records.json").open() as fp:
-        self.records = Records(json.load(fp, cls=RecordDecoder))
+        self._records = Ordered(Record, json.load(fp, cls=ClassDecoder(Record)))
     except FileNotFoundError:
       pass
 
-  def add(self, record):
+    # load plans
+    try:
+      with (self._folder / "plans.json").open() as fp:
+        self._plans = Ordered(PlannedRecord, json.load(fp, cls=ClassDecoder(PlannedRecord)))
+    except FileNotFoundError:
+      pass
+
+  def add(self, record_or_plan):
     """
-    add a record + save
+    add a record or plan + save
     """
-    self.records.append(record)
+    self._scope.append(record_or_plan)
     self.save()
 
   def record(self, *args, **kwargs):
     """
     utility function to create a record from arguments and add it
     """
-    self.add(Record(*args, **kwargs))
+    self.records.add(Record(*args, **kwargs))
+
+  def plan(self, *args, **kwargs):
+    """
+    utility function to create a plan from arguments and add it
+    """
+    self.plans.add(PlannedRecord(*args, **kwargs))
 
   def slurp(self, source=sys.stdin):
     """
@@ -104,13 +158,11 @@ class Tracker:
       self.record(*line.split("\t"))
 
   def __iter__(self):
-    for record in self.records:
-      yield record
+    for record_or_plan in self._scope:
+      yield record_or_plan
 
   def __len__(self):
-    return len(self.records)
+    return len(self._scope)
   
   def __getitem__(self, index):
-    return self.records[index]
-
-  
+    return self._scope[index]

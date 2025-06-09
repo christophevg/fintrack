@@ -5,7 +5,10 @@ import json
 import uuid
 
 from fintrack.tracker import Tracker, __version__
-from fintrack.records import Record, RecordDecoder
+from fintrack.records import Record
+from fintrack.util    import ClassDecoder, asrow
+
+import fintrack.util
 
 def test_version():
   assert Tracker().version() == __version__
@@ -44,13 +47,13 @@ def test_save(tmp_path):
   assert config == { "version" : __version__ }
 
   with (tmp_path / "records.json").open() as fp:
-    records = json.load(fp, cls=RecordDecoder)
+    records = json.load(fp, cls=ClassDecoder(Record))
 
   assert len(records) == 3
   assert all([ isinstance(record, Record) for record in records ])
   assert records[0].amount      == -125
   assert records[1].description == "test 2"
-  assert records[2].uid         == uid3
+  assert records[2].uid         == str(uid3)
 
 def test_load(tmp_path):
   with (tmp_path / "config.yaml").open("w") as fp:
@@ -61,23 +64,23 @@ def test_load(tmp_path):
     ], fp)
   
   tracker = Tracker(folder=tmp_path)
-  assert len(tracker) == 1
+  assert len(tracker.records) == 1
   assert tracker[0].amount == -125 
   assert tracker[0].description == "test load"
 
-def test_slurp(tmp_path):
+def test_slurp(tmp_path, monkeypatch):
+  monkeypatch.setattr(fintrack.util.uuid, "uuid4", lambda: "456")
+  
   input = """600,21	Start	Thu, 1 May 2025
-  -€ 32,34	test 123	Sun, 11 May 2025
+  -€ 32,34	test 123	Sun, 12 May 2025
   -€ 14,60	test 456	Sun, 11 May 2025"""
 
   tracker = Tracker(tmp_path)
   tracker.slurp(source=input.split("\n"))
-  rows = tracker.records.rows(with_color=False)
   # ignore uids
-  rows = [ row[:-1] for row in rows ]
+  rows = [ asrow(record) for record in tracker.records ]
   assert rows == [
-    [ "May 01", 600.21, 600.21, "Start"    ],
-    [ "May 11", -32.34, 567.87, "test 123" ],
-    [ "May 11", -14.6,  553.27, "test 456" ]
+    [ "May 01", 600.21, "Start",    "456" ],
+    [ "May 11", -14.6,  "test 456", "456" ],
+    [ "May 12", -32.34, "test 123", "456" ]
   ]
-  

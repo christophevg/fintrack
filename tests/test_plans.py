@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from fintrack.plans import PlannedRecord
+from fintrack.util  import asrow
 
 def test_fixed_timestamp_plan():
   plan = PlannedRecord(
@@ -10,7 +11,7 @@ def test_fixed_timestamp_plan():
     "{plan.description} on {date}"
   )
   records = plan.take(3, start=datetime(2025, 6, 9))
-  assert records.rows(with_balance=False, with_color=False) == [
+  assert [ asrow(record) for record in records ] == [
     ['Jun 13', -125, 'groceries', 'groceries on Jun 13'],
     ['Jun 27', -125, 'groceries', 'groceries on Jun 27'],
     ['Jul 11', -125, 'groceries', 'groceries on Jul 11']

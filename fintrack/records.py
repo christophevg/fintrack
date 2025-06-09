@@ -1,24 +1,16 @@
-from dataclasses import dataclass, field, asdict
-from collections import UserList
+from dataclasses import dataclass, field
 
 from datetime import datetime
-from dateparser import parse
-import humanize
-
 import uuid
-import bisect
-import json
+from decimal import Decimal, getcontext
+import operator
 
-from tabulate import tabulate
-from colorama import Fore, Style, init
-
-from fintrack.util import now, uid, parse_amount, DATE_ORDER
+from fintrack.util import now, uid, parse_amount, parse_datetime
 
 import logging
 logger = logging.getLogger(__name__)
 
-# reset coloring in between prints
-init(autoreset=True)
+getcontext().prec = 2
 
 @dataclass
 class Record:
@@ -27,119 +19,49 @@ class Record:
   description, with timestamp and unique identifier, defaulting to now and a
   random uuid
   """
-  amount      : float
+  amount      : Decimal
   description : str
+
   # optional
-  timestamp   : datetime  = field(default_factory=now)
-  uid         : uuid.UUID = field(default_factory=uid)
+  timestamp   : datetime = field(default_factory=now)
+  uid         : str      = field(default_factory=uid)
   
+  # exposed columns in prefered presentation order
   columns = [ "timestamp", "amount", "description", "uid" ]
   
   def __post_init__(self):
     """
-    if amount or timestamp are a string, parse it
+    if amount or timestamp are a string, parse it, default uid
     """
-    if isinstance(self.amount, str):
+    if not isinstance(self.amount, Decimal):
       self.amount = parse_amount(self.amount)
     if not isinstance(self.timestamp, datetime):
-      self.timestamp = parse(self.timestamp, settings={"DATE_ORDER": DATE_ORDER})
+      self.timestamp = parse_datetime(self.timestamp)
     if self.uid is None:
       self.uid = uid()
+    if isinstance(self.uid, uuid.UUID):
+      self.uid = str(self.uid)
   
   def __lt__(self, other):
     return self.timestamp < other.timestamp
 
-  def __getitem__(self, key):
-    """
-    returns a property by name, as a basic type (datetime, uuid => str)
-    """
-    value = getattr(self, key)
-    if key == "timestamp":
-      return humanize.naturalday(value)
-    if key == "uid":
-      return str(value)
-    return value
-
-class Records(UserList):
+def running(rows, source, method=operator.add):
   """
-  a list of Record objects (only), kept sorted on append including when combined
+  takes a list of rows, adding a running value based on a source property and a
+  method to compute that running value
   """
-  def __iter__(self):
-    for record in self.data:
-      yield record
+  value = 0
+  index = Record.columns.index(source)
+  new_rows = []
+  for row in rows:
+    extended_row = row.copy()
+    value = method(value , extended_row[index])
+    extended_row.insert(index+1, value)
+    new_rows.append(extended_row)
+  return new_rows
 
-  def append(self, record):
-    if not isinstance(record, Record):
-      raise TypeError("Records can only append Record objects")
-    bisect.insort(self.data, record)
-
-  def extend(self, other):
-    for record in other:
-      self.append(record)
-
-  def __add__(self, other):
-    new = self.copy()
-    new.extend(other)
-    return new
-
-  def columns(self, with_balance=True):
-    c = Record.columns.copy()
-    if with_balance:
-      c.insert(c.index("amount")+1, "balance")
-    return c
-
-  def rows(self, with_balance=True, with_color=True):
-
-    def colorize(value):
-      if not with_color:
-        return value
-      if value < 0:
-        return Fore.RED + str(value) + Style.RESET_ALL
-      return value
-
-    balance = 0
-    r = []
-    for record in self:
-      balance += record["amount"]
-      r.append([
-        colorize(balance) if column == "balance" else record[column]
-        for column in self.columns(with_balance=with_balance)
-      ])
-    return r
-
-  def show(self, with_balance=True):
-    if not len(self):
-      logger.warning("no records available")
-      return
-    return tabulate(
-      self.rows(with_balance=with_balance),
-      self.columns(with_balance=with_balance),
-      tablefmt="grid"
-    )
-
-class RecordEncoder(json.JSONEncoder):
-  def default(self, obj):
-    if isinstance(obj, Records):
-      return list(obj)
-    if isinstance(obj, Record):
-      return asdict(obj)
-    if isinstance(obj, datetime):
-      return obj.isoformat()
-    if isinstance(obj, uuid.UUID):
-      return str(obj)
-    return super().default(obj)
-
-class RecordDecoder(json.JSONDecoder):
-  def __init__(self, *args, **kwargs):
-    super().__init__(object_hook=self.object_hook, *args, **kwargs)
-
-  def object_hook(self, dct):
-    try:
-      dct["timestamp"] = datetime.fromisoformat(dct["timestamp"])
-    except KeyError:
-      pass
-    try:
-      dct["uid"] = uuid.UUID(dct["uid"])
-    except (KeyError, ValueError):
-      pass
-    return Record(**dct)
+def balanced(rows, headers=False):
+  if headers:
+    rows.insert(Record.columns.index("amount")+1, "balance")
+    return rows
+  return running(rows, "amount")
