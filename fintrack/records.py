@@ -23,8 +23,9 @@ init(autoreset=True)
 @dataclass
 class Record:
   """
-  keeps and an amount and description, with timestamp and unique identifier,
-  defaulting to now and a random uuid
+  represents some financial transaction, consisting of an amount and
+  description, with timestamp and unique identifier, defaulting to now and a
+  random uuid
   """
   amount      : float
   description : str
