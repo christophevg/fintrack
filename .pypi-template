@@ -35,6 +35,7 @@ skip:
 - tests
 - (package_module_name)
 - tox.ini
+- .gitignore
 test_requires:
 - freezegun
 version: 1.3.0
