@@ -5,7 +5,7 @@ import json
 import uuid
 
 from fintrack.tracker import Tracker, __version__
-from fintrack.recorders import Record, RecordDecoder
+from fintrack.records import Record, RecordDecoder
 
 def test_version():
   assert Tracker().version() == __version__

@@ -8,7 +8,7 @@ import json
 import logging
 
 from fintrack import __version__
-from fintrack.recorders import Record, Records, RecordEncoder, RecordDecoder
+from fintrack.records import Record, Records, RecordEncoder, RecordDecoder
 
 logger = logging.getLogger(__name__)
 

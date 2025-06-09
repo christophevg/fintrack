@@ -5,8 +5,8 @@ import re
 
 import json
 
-from fintrack.recorders import Record, Records, RecordEncoder
-import fintrack.recorders
+from fintrack.records import Record, Records, RecordEncoder
+import fintrack.records
 
 def test_record_with_provided_timestamp():
   ts = datetime.now()
@@ -20,7 +20,7 @@ def test_record_with_provided_uid():
   assert Record(-125, "test record", uid="123").uid == "123"
 
 def test_record_with_default_uid(monkeypatch):
-  monkeypatch.setattr(fintrack.recorders.uuid, "uuid4", lambda: "456")
+  monkeypatch.setattr(fintrack.records.uuid, "uuid4", lambda: "456")
   assert Record(-125, "test record").uid == "456"
 
 def test_record_timestamp_parsing():
