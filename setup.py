@@ -12,7 +12,6 @@ URL              = "https://github.com/christophevg/" + NAME
 README           = ".github/README.md"
 CLASSIFIERS      = [
   "Topic :: Office/Business :: Financial :: Accounting",
-  "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
