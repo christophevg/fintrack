@@ -58,7 +58,7 @@ class Ordered(UserList):
   def __init__(self, obj_type, *args, **kwargs):
     if not isinstance(obj_type, type):
       raise TypeError(f"invalid object type: {obj_type}")
-    self._obj_type = obj_type
+    self.type = obj_type
     super().__init__(*args, **kwargs)
 
   def __iter__(self):
@@ -66,8 +66,8 @@ class Ordered(UserList):
       yield obj
 
   def append(self, obj):
-    if not isinstance(obj, self._obj_type):
-      raise TypeError(f"rows can only be of {self._obj_type} type")
+    if not isinstance(obj, self.type):
+      raise TypeError(f"rows can only be of {self.type} type")
     bisect.insort(self.data, obj)
 
   def extend(self, other):
@@ -75,7 +75,7 @@ class Ordered(UserList):
       self.append(obj)
 
   def __add__(self, other):
-    new = self.__class__(self._obj_type, self)
+    new = self.__class__(self.type, self)
     new.extend(other)
     return new
 

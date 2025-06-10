@@ -17,10 +17,14 @@ logger = logging.getLogger(__name__)
 
 class Tracker:
   def __init__(self, folder="~/.fintrack"):
-    self._records  = Ordered(Record)
-    self._plans    = Ordered(PlannedRecord)
-    self._scope    = None
+    self._sheets   = {}
+    self._sheet    = None   # currently active sheet
     self._balanced = False
+    self.types = {
+      "records" : Record,
+      "plans"   : PlannedRecord
+    }
+    # use folder, which also triggers loading
     self.use(folder)
     
   def version(self):
@@ -38,40 +42,71 @@ class Tracker:
 
   @property
   def config(self):
+    """
+    the configuration consists of the version and a dictionary of sheets mapping
+    their name to their (content) type, Record or PlannedRecord
+    """
     return {
-      "version" : __version__
+      "version": __version__,
+      "sheets" : {
+        name : {
+          type : name for name, type in self.types.items()
+        }[collection.type] for name, collection in self._sheets.items()
+      }
     }
 
   @property
-  def records(self):
-    self._scope = self._records
-    return self
-
-  @property
-  def plans(self):
-    self._scope = self._plans
+  def current_sheet(self):
+    if self._sheet is None:
+      logger.error("no sheet selected, use 'sheet <name>' to select one")
+      sys.exit(1)
+    return self._sheet
+  
+  def sheet(self, name):
+    """
+    sets the active sheet
+    """
+    self._sheet = self._sheets[name]
+    logger.info(f"activated sheet '{name}'")
     return self
 
   def future(self, until="next month"):
-    self._scope = Ordered(Record)
-    for plan in self._plans:
-      self._scope = self._scope + Ordered(Record, plan.take(until=until))
+    """
+    future generates records from the planned records
+    TODO: generalize
+    """
+    self._sheet = Ordered(Record)
+    for plan in self._sheets["plans"]:
+      self._sheet = self._sheet + Ordered(Record, plan.take(until=until))
     return self
 
   @property
   def overview(self):
-    self._scope = self._records
-    for plan in self._plans:
-      self._scope = self._scope + Ordered(Record, plan.take(until="next month"))
+    """
+    overview is a ready-made composite sheet of records and the future
+    TODO: generalize
+    """
+    self._sheet = self._sheets["records"]
+    for plan in self._sheets["plans"]:
+      self._sheet = self._sheet + Ordered(Record, plan.take(until="next month"))
     return self
 
   def balanced(self):
+    """
+    activate addition of balance
+    TODO: toggle it?
+    """
     self._balanced = True
     return self
 
   @property
   def table(self):
-    return Tabular(self._scope, balanced=balanced if self._balanced else None)
+    """
+    visualize the current sheet as a table
+    """
+    return Tabular(self.current_sheet, balanced=balanced if self._balanced else None)
+
+  # storage
 
   def use(self, folder):
     """
@@ -93,13 +128,11 @@ class Tracker:
     with (self._folder / "config.yaml").open("w") as fp:
       yaml.safe_dump(self.config, fp, indent=2, default_flow_style=False)
 
-    # save records
-    with (self._folder / "records.json").open("w") as fp:
-      json.dump(self._records, fp, cls=ClassEncoder, indent=2)
-
-    # save plans
-    with (self._folder / "plans.json").open("w") as fp:
-      json.dump(self._plans, fp, cls=ClassEncoder, indent=2)
+    # save sheets
+    for name, sheet in self._sheets.items():
+      # save records
+      with (self._folder / f"{name}.json").open("w") as fp:
+        json.dump(sheet, fp, cls=ClassEncoder, indent=2)
 
     return self
 
@@ -110,44 +143,48 @@ class Tracker:
     # load configuration
     try:
       with (self._folder / "config.yaml").open() as fp:
-        _ = yaml.safe_load(fp) # do nothing with it for now
+        config = yaml.safe_load(fp)
     except FileNotFoundError:
-      pass
+      logger.warning(f"{self._folder} doesn't contain config.yaml")
+      config = { "sheets" : {} }
     
-    # load records
-    try:
-      with (self._folder / "records.json").open() as fp:
-        self._records = Ordered(Record, json.load(fp, cls=ClassDecoder(Record)))
-    except FileNotFoundError:
-      pass
+    # load sheets
+    self._sheets = {}
+    if "sheets" in config:
+      for name, typename in config["sheets"].items():
+        try:
+          type = self.types[typename]
+          with (self._folder / f"{name}.json").open() as fp:
+            self._sheets[name] = Ordered(type, json.load(fp, cls=ClassDecoder(type)))
+        except FileNotFoundError:
+          logger.warning(f"could not find sheet {name}.json")
 
-    # load plans
-    try:
-      with (self._folder / "plans.json").open() as fp:
-        self._plans = Ordered(PlannedRecord, json.load(fp, cls=ClassDecoder(PlannedRecord)))
-    except FileNotFoundError:
-      pass
+    # ensure at least empty records and plans sheets are available
+    self._sheets = {
+      name : Ordered(type) for name, type in self.types.items()
+    } | self._sheets
 
-  def add(self, record_or_plan):
+    self.sheet("records")
+    return self
+
+  # record management
+
+  def append(self, record_or_plan):
     """
-    add a record or plan + save
+    add a record or plan to the current sheet and save
     """
-    self._scope.append(record_or_plan)
+    self.current_sheet.append(record_or_plan)
     self.save()
 
-  def record(self, *args, **kwargs):
+  def add(self, *args, **kwargs):
     """
-    utility function to create a record from arguments and add it
+    utility function to create a (planned)record from arguments and add it
     """
-    self.records.add(Record(*args, **kwargs))
+    record = self.current_sheet.type(*args, **kwargs)
+    self.append(record)
+    logger.info(f"added {record}")
 
-  def plan(self, *args, **kwargs):
-    """
-    utility function to create a plan from arguments and add it
-    """
-    self.plans.add(PlannedRecord(*args, **kwargs))
-
-  def slurp(self, source=sys.stdin):
+  def slurp(self, typename, source=sys.stdin):
     """
     reads tab separated rows from stdin and imports them as records
     """
@@ -155,14 +192,16 @@ class Tracker:
       line = line.strip()
       if not line:
         break
-      self.record(*line.split("\t"))
+      self.add(*line.split("\t"))
+
+  # iterator support, making Tracker a list of what's on its current sheet
 
   def __iter__(self):
-    for record_or_plan in self._scope:
+    for record_or_plan in self.current_sheet:
       yield record_or_plan
 
   def __len__(self):
-    return len(self._scope)
+    return len(self.current_sheet)
   
   def __getitem__(self, index):
-    return self._scope[index]
+    return self.current_sheet[index]

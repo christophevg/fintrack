@@ -41,6 +41,9 @@ class PlannedRecord:
     if RecurringEvent().parse(self.schedule) is None:
       raise ValueError("schedule is invalid")
 
+  def __repr__(self):
+    return f"plan for {self.amount} {self.schedule} {self.description}"
+
   @property
   def next_occurrence(self):
     return self.take(1)[0]

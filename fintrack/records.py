@@ -4,6 +4,7 @@ from datetime import datetime
 import uuid
 from decimal import Decimal, getcontext
 import operator
+import humanize
 
 from fintrack.util import now, uid, parse_amount, parse_datetime
 
@@ -41,6 +42,9 @@ class Record:
       self.uid = uid()
     if isinstance(self.uid, uuid.UUID):
       self.uid = str(self.uid)
+  
+  def __repr__(self):
+    return f"record for {self.amount} {humanize.naturalday(self.timestamp)} {self.description}"
   
   def __lt__(self, other):
     return self.timestamp < other.timestamp
