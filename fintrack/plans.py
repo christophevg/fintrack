@@ -8,8 +8,8 @@ from humanize import naturalday
 
 from decimal import Decimal, getcontext
 
-from fintrack.records import Record
-from fintrack.util    import now, uid, parse_amount, parse_datetime
+from fintrack.records import RecordLike, Record
+from fintrack.utils   import now, uid, parse_amount, parse_datetime
 
 import logging
 logger = logging.getLogger(__name__)
@@ -17,14 +17,11 @@ logger = logging.getLogger(__name__)
 getcontext().prec = 2
 
 @dataclass
-class PlannedRecord:
+class PlannedRecord(RecordLike):
   """
   represents a plannen record and generates Records according to a schedule
   """
-  amount      : Decimal
-  description : str
   schedule    : str
-
   # optional
   uids        : str = None
   uid         : str = field(default_factory=uid)
@@ -35,11 +32,11 @@ class PlannedRecord:
     """
     if amount is a string, parse it, ensure the schedule is valid
     """
-    if not isinstance(self.amount, Decimal):
-      self.amount = parse_amount(self.amount)
     # ensure the schedule is valid
     if RecurringEvent().parse(self.schedule) is None:
       raise ValueError("schedule is invalid")
+    if not isinstance(self.amount, Decimal):
+      self.amount = parse_amount(self.amount)
 
   def __repr__(self):
     return f"plan for {self.amount} {self.schedule} {self.description}"
@@ -47,6 +44,10 @@ class PlannedRecord:
   @property
   def next_occurrence(self):
     return self.take(1)[0]
+  
+  @property
+  def timestmap(self):
+    return self.next_occurence.timestamp
   
   def __lt__(self, other):
     return self.next_occurrence.timestamp < other.next_occurrence.timestamp

@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from fintrack.plans import PlannedRecord
-from fintrack.util  import asrow
+from fintrack.utils import asrow
 
 def test_fixed_timestamp_plan():
   plan = PlannedRecord(

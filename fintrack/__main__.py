@@ -23,7 +23,7 @@ logging.getLogger().setLevel(LOG_LEVEL)
 
 # "silence" lower-level modules
 for module in [
-  "tzlocal"
+  "tzlocal", "recurrent"
 ]:
   module_logger = logging.getLogger(module)
   module_logger.setLevel(logging.WARN)

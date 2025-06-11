@@ -3,20 +3,17 @@ import os
 import re
 
 from dataclasses import is_dataclass, asdict, fields
+from collections.abc import Iterable
 
 import json
 
 from dateparser import parse
 from datetime import datetime
 import uuid
+import numbers
+from decimal import Decimal
 
 import humanize
-
-from collections import UserList
-import bisect
-import numbers
-
-from decimal import Decimal
 
 import logging
 logger = logging.getLogger(__name__)
@@ -50,38 +47,9 @@ def parse_amount(amount):
 def parse_datetime(dt_str):
   return parse(dt_str, settings={"DATE_ORDER": DATE_ORDER})
 
-class Ordered(UserList):
-  """
-  a list of objects of a provided type, kept sorted on append including when
-  combined
-  """
-  def __init__(self, obj_type, *args, **kwargs):
-    if not isinstance(obj_type, type):
-      raise TypeError(f"invalid object type: {obj_type}")
-    self.type = obj_type
-    super().__init__(*args, **kwargs)
-
-  def __iter__(self):
-    for obj in self.data:
-      yield obj
-
-  def append(self, obj):
-    if not isinstance(obj, self.type):
-      raise TypeError(f"rows can only be of {self.type} type")
-    bisect.insort(self.data, obj)
-
-  def extend(self, other):
-    for obj in other:
-      self.append(obj)
-
-  def __add__(self, other):
-    new = self.__class__(self.type, self)
-    new.extend(other)
-    return new
-
 class ClassEncoder(json.JSONEncoder):
   def default(self, obj):
-    if isinstance(obj, Ordered):
+    if isinstance(obj, Iterable):
       return list(obj)
     if is_dataclass(obj):
       return asdict(obj)

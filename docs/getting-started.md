@@ -28,19 +28,19 @@ FinTrack kan be used as a console/command line tool or as a Python module
 0.0.1
 
 % date
-Tue Jun 10 12:05:39 CEST 2025
+Wed Jun 11 10:25:41 CEST 2025
 
 % fintrack add 125 "starting balance" today
 🏦 WARNING fintrack.tracker - /Users/xtof/.fintrack doesn't contain config.yaml
 🏦 INFO fintrack.tracker - activated sheet 'records'
 🏦 INFO fintrack.tracker - added record for 125 vandaag starting balance
 
-% % fintrack table
+% fintrack table
 🏦 INFO fintrack.tracker - activated sheet 'records'
 +-------------+----------+------------------+--------------------------------------+
 | timestamp   |   amount | description      | uid                                  |
 +=============+==========+==================+======================================+
-| vandaag     |      125 | starting balance | 9c7e6ce9-1c0c-47fb-878e-96253438b106 |
+| vandaag     |      125 | starting balance | 771493a0-64ca-449a-8a85-5cedf4fbab1b |
 +-------------+----------+------------------+--------------------------------------+
 
 % cat ~/.fintrack/records.json
@@ -48,8 +48,8 @@ Tue Jun 10 12:05:39 CEST 2025
   {
     "amount": "125",
     "description": "starting balance",
-    "timestamp": "2025-06-10T12:05:55.851083",
-    "uid": "9c7e6ce9-1c0c-47fb-878e-96253438b106"
+    "timestamp": "2025-06-11T10:27:44.518314",
+    "uid": "771493a0-64ca-449a-8a85-5cedf4fbab1b"
   }
 ] 
 ```
@@ -59,9 +59,9 @@ Tue Jun 10 12:05:39 CEST 2025
 ```python
 >>> import json
 >>> from fintrack.tracker import Tracker
->>> from fintrack.util import ClassEncoder
+>>> from fintrack.utils import ClassEncoder
 >>> tracker = Tracker()
->>> tracker.version()
+>>> tracker.version
 '0.0.1'
 >>> tracker.add(-200, "first payment")
 >>> print(json.dumps(list(tracker), cls=ClassEncoder, indent=2))
@@ -69,24 +69,24 @@ Tue Jun 10 12:05:39 CEST 2025
   {
     "amount": "125",
     "description": "starting balance",
-    "timestamp": "2025-06-10T12:05:55.851083",
-    "uid": "9c7e6ce9-1c0c-47fb-878e-96253438b106"
+    "timestamp": "2025-06-11T10:27:44.518314",
+    "uid": "771493a0-64ca-449a-8a85-5cedf4fbab1b"
   },
   {
     "amount": "-200",
     "description": "first payment",
-    "timestamp": "2025-06-10T12:07:52.409001",
-    "uid": "0357955f-9f2c-493b-9323-fbfea0a25938"
+    "timestamp": "2025-06-11T10:30:22.320676",
+    "uid": "95f860f3-c28a-451a-9b74-024fc7c5db76"
   }
 ]
->>> print(tracker.table)
-+-------------+----------+------------------+--------------------------------------+
-| timestamp   |   amount | description      | uid                                  |
-+=============+==========+==================+======================================+
-| vandaag     |      125 | starting balance | 9c7e6ce9-1c0c-47fb-878e-96253438b106 |
-+-------------+----------+------------------+--------------------------------------+
-| vandaag     |     -200 | first payment    | 0357955f-9f2c-493b-9323-fbfea0a25938 |
-+-------------+----------+------------------+--------------------------------------+
+>>> print(tracker.balanced.table)
++-------------+----------+-----------+------------------+--------------------------------------+
+| timestamp   |   amount |   balance | description      | uid                                  |
++=============+==========+===========+==================+======================================+
+| vandaag     |      125 |       125 | starting balance | 771493a0-64ca-449a-8a85-5cedf4fbab1b |
++-------------+----------+-----------+------------------+--------------------------------------+
+| vandaag     |     -200 |       -75 | first payment    | 95f860f3-c28a-451a-9b74-024fc7c5db76 |
++-------------+----------+-----------+------------------+--------------------------------------+
 ```
 
 ## Planning
@@ -109,52 +109,54 @@ FinTrack also allows you to make plans using PlannedRecords:
 +-----------------+----------+---------------+---------------------+--------------------------------------+
 | schedule        |   amount | description   | uids                | uid                                  |
 +=================+==========+===============+=====================+======================================+
-| every other day |        5 | daily saving  | saving on {date}    | 1a7c218f-d2a6-495b-874e-0d6ef6db13ea |
+| every other day |        5 | daily saving  | saving on {date}    | a3b11e8b-6df7-4371-845a-68ce3a0a01c6 |
 +-----------------+----------+---------------+---------------------+--------------------------------------+
-| every friday    |     -125 | groceries     | groceries on {date} | f70403d8-94d0-4056-ba34-cb44e12feede |
+| every friday    |     -125 | groceries     | groceries on {date} | 9e60cfac-3f3a-4983-a09f-348530d633cc |
 +-----------------+----------+---------------+---------------------+--------------------------------------+
 % fintrack future "next month" table
 🏦 INFO fintrack.tracker - activated sheet 'records'
 +-------------+----------+---------------+---------------------+
 | timestamp   |   amount | description   | uid                 |
 +=============+==========+===============+=====================+
-| Jun 12      |        5 | daily saving  | saving on Jun 12    |
+| Jun 13      |        5 | daily saving  | saving on Jun 13    |
 +-------------+----------+---------------+---------------------+
 | Jun 13      |     -125 | groceries     | groceries on Jun 13 |
 +-------------+----------+---------------+---------------------+
-| Jun 14      |        5 | daily saving  | saving on Jun 14    |
+| Jun 15      |        5 | daily saving  | saving on Jun 15    |
 +-------------+----------+---------------+---------------------+
-| Jun 16      |        5 | daily saving  | saving on Jun 16    |
+| Jun 17      |        5 | daily saving  | saving on Jun 17    |
 +-------------+----------+---------------+---------------------+
-| Jun 18      |        5 | daily saving  | saving on Jun 18    |
-+-------------+----------+---------------+---------------------+
-| Jun 20      |        5 | daily saving  | saving on Jun 20    |
+| Jun 19      |        5 | daily saving  | saving on Jun 19    |
 +-------------+----------+---------------+---------------------+
 | Jun 20      |     -125 | groceries     | groceries on Jun 20 |
 +-------------+----------+---------------+---------------------+
-| Jun 22      |        5 | daily saving  | saving on Jun 22    |
+| Jun 21      |        5 | daily saving  | saving on Jun 21    |
 +-------------+----------+---------------+---------------------+
-| Jun 24      |        5 | daily saving  | saving on Jun 24    |
+| Jun 23      |        5 | daily saving  | saving on Jun 23    |
 +-------------+----------+---------------+---------------------+
-| Jun 26      |        5 | daily saving  | saving on Jun 26    |
+| Jun 25      |        5 | daily saving  | saving on Jun 25    |
++-------------+----------+---------------+---------------------+
+| Jun 27      |        5 | daily saving  | saving on Jun 27    |
 +-------------+----------+---------------+---------------------+
 | Jun 27      |     -125 | groceries     | groceries on Jun 27 |
 +-------------+----------+---------------+---------------------+
-| Jun 28      |        5 | daily saving  | saving on Jun 28    |
+| Jun 29      |        5 | daily saving  | saving on Jun 29    |
 +-------------+----------+---------------+---------------------+
-| Jun 30      |        5 | daily saving  | saving on Jun 30    |
+| Jul 01      |        5 | daily saving  | saving on Jul 01    |
 +-------------+----------+---------------+---------------------+
-| Jul 02      |        5 | daily saving  | saving on Jul 02    |
-+-------------+----------+---------------+---------------------+
-| Jul 04      |        5 | daily saving  | saving on Jul 04    |
+| Jul 03      |        5 | daily saving  | saving on Jul 03    |
 +-------------+----------+---------------+---------------------+
 | Jul 04      |     -125 | groceries     | groceries on Jul 04 |
 +-------------+----------+---------------+---------------------+
-| Jul 06      |        5 | daily saving  | saving on Jul 06    |
+| Jul 05      |        5 | daily saving  | saving on Jul 05    |
 +-------------+----------+---------------+---------------------+
-| Jul 08      |        5 | daily saving  | saving on Jul 08    |
+| Jul 07      |        5 | daily saving  | saving on Jul 07    |
 +-------------+----------+---------------+---------------------+
-| Jul 10      |        5 | daily saving  | saving on Jul 10    |
+| Jul 09      |        5 | daily saving  | saving on Jul 09    |
++-------------+----------+---------------+---------------------+
+| Jul 11      |        5 | daily saving  | saving on Jul 11    |
++-------------+----------+---------------+---------------------+
+| Jul 11      |     -125 | groceries     | groceries on Jul 11 |
 +-------------+----------+---------------+---------------------+
 ```
 
@@ -166,46 +168,48 @@ Records can be "balanced" and the "overview" shows recent and future expected tr
 +-------------+----------+-----------+------------------+--------------------------------------+
 | timestamp   |   amount |   balance | description      | uid                                  |
 +=============+==========+===========+==================+======================================+
-| vandaag     |      125 |       125 | starting balance | 9c7e6ce9-1c0c-47fb-878e-96253438b106 |
+| vandaag     |      125 |       125 | starting balance | 771493a0-64ca-449a-8a85-5cedf4fbab1b |
 +-------------+----------+-----------+------------------+--------------------------------------+
-| vandaag     |     -200 |       -75 | first payment    | 0357955f-9f2c-493b-9323-fbfea0a25938 |
+| vandaag     |     -200 |       -75 | first payment    | 95f860f3-c28a-451a-9b74-024fc7c5db76 |
 +-------------+----------+-----------+------------------+--------------------------------------+
-| Jun 12      |        5 |       -70 | daily saving     | saving on Jun 12                     |
+| Jun 13      |        5 |       -70 | daily saving     | saving on Jun 13                     |
 +-------------+----------+-----------+------------------+--------------------------------------+
 | Jun 13      |     -125 |      -195 | groceries        | groceries on Jun 13                  |
 +-------------+----------+-----------+------------------+--------------------------------------+
-| Jun 14      |        5 |      -190 | daily saving     | saving on Jun 14                     |
+| Jun 15      |        5 |      -190 | daily saving     | saving on Jun 15                     |
 +-------------+----------+-----------+------------------+--------------------------------------+
-| Jun 16      |        5 |      -185 | daily saving     | saving on Jun 16                     |
+| Jun 17      |        5 |      -185 | daily saving     | saving on Jun 17                     |
 +-------------+----------+-----------+------------------+--------------------------------------+
-| Jun 18      |        5 |      -180 | daily saving     | saving on Jun 18                     |
+| Jun 19      |        5 |      -180 | daily saving     | saving on Jun 19                     |
 +-------------+----------+-----------+------------------+--------------------------------------+
-| Jun 20      |        5 |      -175 | daily saving     | saving on Jun 20                     |
+| Jun 20      |     -125 |      -305 | groceries        | groceries on Jun 20                  |
 +-------------+----------+-----------+------------------+--------------------------------------+
-| Jun 20      |     -125 |      -300 | groceries        | groceries on Jun 20                  |
+| Jun 21      |        5 |      -300 | daily saving     | saving on Jun 21                     |
 +-------------+----------+-----------+------------------+--------------------------------------+
-| Jun 22      |        5 |      -295 | daily saving     | saving on Jun 22                     |
+| Jun 23      |        5 |      -295 | daily saving     | saving on Jun 23                     |
 +-------------+----------+-----------+------------------+--------------------------------------+
-| Jun 24      |        5 |      -290 | daily saving     | saving on Jun 24                     |
+| Jun 25      |        5 |      -290 | daily saving     | saving on Jun 25                     |
 +-------------+----------+-----------+------------------+--------------------------------------+
-| Jun 26      |        5 |      -285 | daily saving     | saving on Jun 26                     |
+| Jun 27      |        5 |      -285 | daily saving     | saving on Jun 27                     |
 +-------------+----------+-----------+------------------+--------------------------------------+
 | Jun 27      |     -125 |      -410 | groceries        | groceries on Jun 27                  |
 +-------------+----------+-----------+------------------+--------------------------------------+
-| Jun 28      |        5 |      -405 | daily saving     | saving on Jun 28                     |
+| Jun 29      |        5 |      -405 | daily saving     | saving on Jun 29                     |
 +-------------+----------+-----------+------------------+--------------------------------------+
-| Jun 30      |        5 |      -400 | daily saving     | saving on Jun 30                     |
+| Jul 01      |        5 |      -400 | daily saving     | saving on Jul 01                     |
 +-------------+----------+-----------+------------------+--------------------------------------+
-| Jul 02      |        5 |      -395 | daily saving     | saving on Jul 02                     |
+| Jul 03      |        5 |      -395 | daily saving     | saving on Jul 03                     |
 +-------------+----------+-----------+------------------+--------------------------------------+
-| Jul 04      |        5 |      -390 | daily saving     | saving on Jul 04                     |
+| Jul 04      |     -125 |      -520 | groceries        | groceries on Jul 04                  |
 +-------------+----------+-----------+------------------+--------------------------------------+
-| Jul 04      |     -125 |      -515 | groceries        | groceries on Jul 04                  |
+| Jul 05      |        5 |      -515 | daily saving     | saving on Jul 05                     |
 +-------------+----------+-----------+------------------+--------------------------------------+
-| Jul 06      |        5 |      -510 | daily saving     | saving on Jul 06                     |
+| Jul 07      |        5 |      -510 | daily saving     | saving on Jul 07                     |
 +-------------+----------+-----------+------------------+--------------------------------------+
-| Jul 08      |        5 |      -505 | daily saving     | saving on Jul 08                     |
+| Jul 09      |        5 |      -505 | daily saving     | saving on Jul 09                     |
 +-------------+----------+-----------+------------------+--------------------------------------+
-| Jul 10      |        5 |      -500 | daily saving     | saving on Jul 10                     |
+| Jul 11      |        5 |      -500 | daily saving     | saving on Jul 11                     |
++-------------+----------+-----------+------------------+--------------------------------------+
+| Jul 11      |     -125 |      -625 | groceries        | groceries on Jul 11                  |
 +-------------+----------+-----------+------------------+--------------------------------------+
 ```

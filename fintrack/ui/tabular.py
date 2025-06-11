@@ -1,8 +1,6 @@
 from tabulate import tabulate
 from colorama import Fore, Style, init
 
-from fintrack.util import get_columns, asrow
-
 import logging
 logger = logging.getLogger(__name__)
 
@@ -11,33 +9,12 @@ init(autoreset=True)
 
 class Tabular:
   """
-  given a list of objects, visualize it as a table, adding color according to
+  given a sheet, visualize it as a table, adding color according to
   provided rules { key, [fun(value)->color)] }
   """
-  def __init__(self, objects, colorize=None, balanced=None):
-    self.objects  = objects
+  def __init__(self, sheet, colorize=None):
+    self.sheet    = sheet
     self.colorize = colorize if colorize else {}
-    self.balanced = balanced
-
-  @property
-  def columns(self):
-    if len(self.objects) > 0:
-      columns = get_columns(self.objects[0])
-      if self.balanced:
-        return self.balanced(columns, headers=True)
-      return columns
-    return []
-
-  @property
-  def rows(self):
-    r = []
-    for obj in self.objects:
-      row = asrow(obj)
-      if row:
-        r.append(row)
-    if self.balanced:
-      return self.balanced(r)
-    return r
 
   def colorized(self, row):
     if not self.colorize:
@@ -53,8 +30,8 @@ class Tabular:
     
   def __str__(self):
     return tabulate( [
-      self.colorized(row) for row in self.rows
-    ], self.columns, tablefmt="grid" )
+      self.colorized(row) for row in self.sheet.rows
+    ], self.sheet.columns, tablefmt="grid" )
 
 def positive_green(value):
   if value > 0:

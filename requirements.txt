@@ -7,4 +7,5 @@ humanize
 pyaml
 tabulate
 colorama
+sortedcontainers
 

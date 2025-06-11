@@ -8,9 +8,10 @@ import json
 import logging
 
 from fintrack            import __version__
-from fintrack.records    import Record, balanced
+from fintrack.books      import Sheet
+from fintrack.records    import Record
 from fintrack.plans      import PlannedRecord
-from fintrack.util       import Ordered, ClassEncoder, ClassDecoder
+from fintrack.utils      import ClassEncoder, ClassDecoder
 from fintrack.ui.tabular import Tabular
 
 logger = logging.getLogger(__name__)
@@ -27,6 +28,7 @@ class Tracker:
     # use folder, which also triggers loading
     self.use(folder)
     
+  @property
   def version(self):
     """
     provide the version
@@ -75,9 +77,9 @@ class Tracker:
     future generates records from the planned records
     TODO: generalize
     """
-    self._sheet = Ordered(Record)
+    self._sheet = Sheet()
     for plan in self._sheets["plans"]:
-      self._sheet = self._sheet + Ordered(Record, plan.take(until=until))
+      self._sheet = self._sheet + Sheet(plan.take(until=until))
     return self
 
   @property
@@ -88,23 +90,25 @@ class Tracker:
     """
     self._sheet = self._sheets["records"]
     for plan in self._sheets["plans"]:
-      self._sheet = self._sheet + Ordered(Record, plan.take(until="next month"))
+      self._sheet = self._sheet + Sheet(plan.take(until="next month"))
     return self
 
+  @property
   def balanced(self):
     """
-    activate addition of balance
-    TODO: toggle it?
+    activate addition of balance for the next action, which resets it afterwards
     """
     self._balanced = True
     return self
 
   @property
-  def table(self):
+  def table(self, balanced=False):
     """
     visualize the current sheet as a table
     """
-    return Tabular(self.current_sheet, balanced=balanced if self._balanced else None)
+    sheet = self.current_sheet.balanced if self._balanced else self.current_sheet
+    self._balanced = False
+    return Tabular(sheet)
 
   # storage
 
@@ -155,13 +159,13 @@ class Tracker:
         try:
           type = self.types[typename]
           with (self._folder / f"{name}.json").open() as fp:
-            self._sheets[name] = Ordered(type, json.load(fp, cls=ClassDecoder(type)))
+            self._sheets[name] = Sheet(json.load(fp, cls=ClassDecoder(type)), cls=type)
         except FileNotFoundError:
           logger.warning(f"could not find sheet {name}.json")
 
     # ensure at least empty records and plans sheets are available
     self._sheets = {
-      name : Ordered(type) for name, type in self.types.items()
+      name : Sheet(cls=type) for name, type in self.types.items()
     } | self._sheets
 
     self.sheet("records")
@@ -178,15 +182,16 @@ class Tracker:
 
   def add(self, *args, **kwargs):
     """
-    utility function to create a (planned)record from arguments and add it
+    add a record or plan using their arguments to the current sheet and save
     """
-    record = self.current_sheet.type(*args, **kwargs)
-    self.append(record)
+    record = self.current_sheet.add(*args, **kwargs)
+    self.save()
     logger.info(f"added {record}")
 
-  def slurp(self, typename, source=sys.stdin):
+  def slurp(self, source=sys.stdin):
     """
-    reads tab separated rows from stdin and imports them as records
+    reads tab separated rows from source iterable, default is stdin, and
+    imports them as records
     """
     for line in source:
       line = line.strip()

@@ -30,6 +30,7 @@ INSTALL_REQUIRES = [
   "pyaml",
   "tabulate",
   "colorama",
+  "sortedcontainers",
   
 ]
 ENTRY_POINTS = {

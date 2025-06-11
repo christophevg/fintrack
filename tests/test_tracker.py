@@ -6,12 +6,12 @@ import uuid
 
 from fintrack.tracker import Tracker, __version__
 from fintrack.records import Record
-from fintrack.util    import ClassDecoder, asrow
+from fintrack.utils   import ClassDecoder, asrow
 
-import fintrack.util
+import fintrack.utils
 
 def test_version():
-  assert Tracker().version() == __version__
+  assert Tracker().version == __version__
 
 def test_init_and_using():
   assert Tracker().using == Path("~/.fintrack").expanduser()
@@ -34,14 +34,14 @@ def test_config():
   }
 
 def test_record(tmp_path):
-  tracker = Tracker(folder=tmp_path).sheet("records")
+  tracker = Tracker(folder=tmp_path)
   tracker.add(-125, "test 1")
   tracker.add(+125, "test 2")
   tracker.add(+125, "test 3")
   assert [ record.description for record in tracker] == [ "test 1", "test 2", "test 3" ]
 
 def test_save(tmp_path):
-  tracker = Tracker(folder=tmp_path).sheet("records")
+  tracker = Tracker(folder=tmp_path)
   tracker.add(-125, "test 1", timestamp="6/7", uid="test1")
   tracker.add(+125, "test 2", timestamp="7/7", uid="test2")
   uid3 = uuid.uuid4()
@@ -80,20 +80,20 @@ def test_load(tmp_path):
       { "amount": -125, "description": "test load" }
     ], fp)
   
-  tracker = Tracker(folder=tmp_path).sheet("records")
+  tracker = Tracker(folder=tmp_path)
   assert len(tracker) == 1
   assert tracker[0].amount == -125 
   assert tracker[0].description == "test load"
 
 def test_slurp(tmp_path, monkeypatch):
-  monkeypatch.setattr(fintrack.util.uuid, "uuid4", lambda: "456")
+  monkeypatch.setattr(fintrack.utils.uuid, "uuid4", lambda: "456")
   
   input = """600,21	Start	Thu, 1 May 2025
   -€ 32,34	test 123	Sun, 12 May 2025
   -€ 14,60	test 456	Sun, 11 May 2025"""
 
-  tracker = Tracker(tmp_path).sheet("records")
-  tracker.slurp("records", source=input.split("\n"))
+  tracker = Tracker(tmp_path)
+  tracker.slurp(source=input.split("\n"))
   rows = [ asrow(record) for record in tracker ]
   assert rows == [
     [ "May 01", 600.21, "Start",    "456" ],

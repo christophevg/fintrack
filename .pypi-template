@@ -30,6 +30,7 @@ requires:
 - pyaml
 - tabulate
 - colorama
+- sortedcontainers
 scripts: []
 skip:
 - docs
