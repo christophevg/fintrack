@@ -20,7 +20,6 @@ class Tracker:
   def __init__(self, folder="~/.fintrack"):
     self._sheets   = {}
     self._sheet    = None   # currently active sheet
-    self._balanced = False
     self.types = {
       "records" : Record,
       "plans"   : PlannedRecord
@@ -96,23 +95,21 @@ class Tracker:
   @property
   def balanced(self):
     """
-    activate addition of balance for the next action, which resets it afterwards
+    makes the balanced version of the current sheet active
     """
-    self._balanced = True
+    self._sheet = self.current_sheet.balanced
     return self
 
   @property
-  def table(self, balanced=False):
+  def table(self):
     """
     visualize the current sheet as a table
     """
-    sheet = self.current_sheet.balanced if self._balanced else self.current_sheet
-    self._balanced = False
     rules = {
       "amount" : [ positive_green, negative_red ],
       "balance": [ negative_red ]
     }
-    return Tabular(sheet, colorize=rules)
+    return Tabular(self.current_sheet, colorize=rules)
 
   # storage
 
