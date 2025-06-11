@@ -22,9 +22,9 @@ class BalancedSheet:
     """
     returns columns with additional balance column after the amount column
     """
-    cols = self._sheet.columns
+    cols = list(self._sheet.columns)
     cols.insert(self._amount_index+1, "balance")
-    return cols
+    return tuple(cols)
   
   @property
   def rows(self):

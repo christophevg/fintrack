@@ -36,7 +36,7 @@ class Record(RecordLike):
   uid         : str      = field(default_factory=uid)
   
   # exposed columns in prefered presentation order
-  columns = [ "timestamp", "amount", "description", "uid" ]
+  columns = ( "timestamp", "amount", "description", "uid" )
   
   def __post_init__(self):
     """

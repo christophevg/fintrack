@@ -26,7 +26,7 @@ class PlannedRecord(RecordLike):
   uids        : str = None
   uid         : str = field(default_factory=uid)
   
-  columns = [ "schedule", "amount", "description", "uids", "uid" ]
+  columns = ( "schedule", "amount", "description", "uids", "uid" )
     
   def __post_init__(self):
     """
