@@ -73,10 +73,6 @@ class Sheet:
     self._records.add(record)
     return record
   
-  def __iter__(self):
-    for record in self._records:
-      yield record
-
   @property
   def columns(self):
     return self.type.columns
@@ -100,6 +96,10 @@ class Sheet:
     new = self.__class__(self, cls=self.type)
     new.update(other)
     return new
+
+  def __iter__(self):
+    for record in self._records:
+      yield record
 
   def __len__(self):
     return len(self._records)

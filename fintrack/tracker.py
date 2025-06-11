@@ -196,8 +196,7 @@ class Tracker:
   # iterator support, making Tracker a list of what's on its current sheet
 
   def __iter__(self):
-    for record_or_plan in self.current_sheet:
-      yield record_or_plan
+    return iter(self.current_sheet)
 
   def __len__(self):
     return len(self.current_sheet)
