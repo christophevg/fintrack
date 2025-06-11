@@ -174,13 +174,6 @@ class Tracker:
 
   # record management
 
-  def append(self, record_or_plan):
-    """
-    add a record or plan to the current sheet and save
-    """
-    self.current_sheet.append(record_or_plan)
-    self.save()
-
   def add(self, *args, **kwargs):
     """
     add a record or plan using their arguments to the current sheet and save
