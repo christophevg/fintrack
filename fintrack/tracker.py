@@ -12,7 +12,7 @@ from fintrack.books      import Sheet
 from fintrack.records    import Record
 from fintrack.plans      import PlannedRecord
 from fintrack.utils      import ClassEncoder, ClassDecoder
-from fintrack.ui.tabular import Tabular
+from fintrack.ui.tabular import Tabular, positive_green, negative_red
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +108,11 @@ class Tracker:
     """
     sheet = self.current_sheet.balanced if self._balanced else self.current_sheet
     self._balanced = False
-    return Tabular(sheet)
+    rules = {
+      "amount" : [ positive_green, negative_red ],
+      "balance": [ negative_red ]
+    }
+    return Tabular(sheet, colorize=rules)
 
   # storage
 

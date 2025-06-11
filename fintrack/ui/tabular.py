@@ -15,18 +15,20 @@ class Tabular:
   def __init__(self, sheet, colorize=None):
     self.sheet    = sheet
     self.colorize = colorize if colorize else {}
+    self.mapping = { key:index for index, key in enumerate(self.sheet.columns) }
 
   def colorized(self, row):
-    if not self.colorize:
-      return row
-    for key, rules in self.colorize.items():
-      for rule in rules:
-        try:
-          color = rule(row[key])
-          if color:
-            row[key] = color + row[key] + Style.RESET_ALL
-        except KeyError:
-          pass
+    if self.colorize:
+      for key, rules in self.colorize.items():
+        for rule in rules:
+          try:
+            index = self.mapping[key]
+            color = rule(row[index])
+            if color:
+              row[index] = color + str(row[index]) + Style.RESET_ALL
+          except KeyError:
+            pass
+    return row
     
   def __str__(self):
     return tabulate( [
@@ -34,9 +36,15 @@ class Tabular:
     ], self.sheet.columns, tablefmt="grid" )
 
 def positive_green(value):
-  if value > 0:
-    return Fore.GREEN
+  try:
+    if value > 0:
+      return Fore.GREEN
+  except TypeError:
+    pass
 
 def negative_red(value):
-  if value < 0:
-    return Fore.RED
+  try:
+    if value < 0:
+      return Fore.RED
+  except TypeError:
+    pass

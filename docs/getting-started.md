@@ -213,3 +213,7 @@ Records can be "balanced" and the "overview" shows recent and future expected tr
 | Jul 11      |     -125 |      -625 | groceries        | groceries on Jul 11                  |
 +-------------+----------+-----------+------------------+--------------------------------------+
 ```
+
+GitHub's console-markdown doesn't allow me to show this off, so here's an old school screenshot of that last command:
+
+![colorize](colorize.png)
