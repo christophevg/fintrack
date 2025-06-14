@@ -72,10 +72,11 @@ class PlannedRecord(RecordLike):
     r = RecurringEvent()
     event = r.parse(self.schedule)
     if r.is_recurring:
+      rr = rrulestr(event, dtstart=start)
       if until:
-        dates = rrulestr(event).between(after=start, before=until, count=count)        
+        dates = rr.between(after=start, before=until, count=count)
       elif count:
-        dates = rrulestr(event).xafter(start, count=count)
+        dates = rr.xafter(start, count=count)
       return [ self.occurrence(dt, index) for index, dt in enumerate(dates) ]
     elif isinstance(event, datetime):
       if start and event < start:

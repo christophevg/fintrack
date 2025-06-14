@@ -10,9 +10,9 @@ def test_fixed_timestamp_plan():
     "every other week on friday",
     "{plan.description} on {date}"
   )
-  records = plan.take(3, start=datetime(2025, 6, 9))
+  records = plan.take(3, start=datetime(2025, 1, 6))
   assert [ asrow(record) for record in records ] == [
-    ['Jun 13', -125, 'groceries', 'groceries on Jun 13'],
-    ['Jun 27', -125, 'groceries', 'groceries on Jun 27'],
-    ['Jul 11', -125, 'groceries', 'groceries on Jul 11']
+    ["Jan 10", -125, "groceries", "groceries on Jan 10"],
+    ["Jan 24", -125, "groceries", "groceries on Jan 24"],
+    ["Feb 07", -125, "groceries", "groceries on Feb 07"]
   ]
