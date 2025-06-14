@@ -31,6 +31,7 @@ INSTALL_REQUIRES = [
   "tabulate",
   "colorama",
   "sortedcontainers",
+  "python-slugify",
   
 ]
 ENTRY_POINTS = {

@@ -26,7 +26,6 @@ def test_use_and_using():
 
 def test_config():
   assert Tracker().config == {
-    "version" : __version__,
     "sheets" : {
       "plans"   : "plans",
       "records" : "records"
@@ -51,7 +50,6 @@ def test_save(tmp_path):
   with (tmp_path / "config.yaml").open() as fp:
     config = yaml.safe_load(fp)
   assert config == {
-    "version" : __version__,
     "sheets" : {
       "plans"   : "plans",
       "records" : "records"
@@ -70,7 +68,6 @@ def test_save(tmp_path):
 def test_load(tmp_path):
   with (tmp_path / "config.yaml").open("w") as fp:
     yaml.safe_dump({
-      "version" : __version__,
       "sheets" : {
         "records" : "records"
       }

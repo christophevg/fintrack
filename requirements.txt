@@ -8,4 +8,5 @@ pyaml
 tabulate
 colorama
 sortedcontainers
+python-slugify
 

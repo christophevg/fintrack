@@ -1,7 +1,170 @@
+import sys
+
+from pathlib import Path
+
+import yaml
+import json
+
 from sortedcontainers import SortedList
 
+from slugify import slugify
+
 from fintrack.records import RecordLike, Record
-from fintrack.utils   import asrow
+from fintrack.plans    import PlannedRecord
+from fintrack.utils   import asrow, ClassEncoder, ClassDecoder
+
+import logging
+logger = logging.getLogger(__name__)
+
+DEFAULT_SHEETS = {
+  "records" : Record,
+  "plans"   : PlannedRecord
+}
+DEFAULT_SHEET = "records" 
+TYPE_NAMES = {
+  Record        : "records",
+  PlannedRecord : "plans"
+}
+
+class Book:
+  """
+  Following the analogy of a spreadsheet, a Book consists of several named
+  sheets and provides access to them, along with persistence.
+  """
+  
+  def __init__(self, folder="~/.fintrack"):
+    self._sheets = {}     # all sheets by name: name -> sheet 
+    self._sheet  = None   # currently active sheet
+    self._folder = None   # storage location
+
+    self.folder  = folder # set the folder, using the setter, to trigger loading
+
+  @property
+  def sheet(self):
+    return self._sheet
+
+  @sheet.setter
+  def sheet(self, name):
+    """
+    accepts a sheet name and makes it the currently active one. the name should 
+    be a slug and will be transformed to it first if not
+    """
+    if not isinstance(name, str):
+      raise TypeError("select sheets by their name as a string")
+    name = slugify(name)
+    try:
+      self._sheet = self._sheets[name]
+      logger.info(f"sheet {name} selected")
+    except KeyError:
+      raise ValueError(f"unknown sheet: {name}, options: {list(self._sheets.keys())}")
+
+  @property
+  def config(self):
+    """
+    the configuration consists of a mapping of the sheet names to their type.
+    """
+    return {
+      "sheets" : { name : TYPE_NAMES[sheet.type] for name, sheet in self._sheets.items() }
+    }
+
+  # storage
+
+  @property
+  def folder(self):
+    return self._folder
+
+  @folder.setter
+  def folder(self, new_folder):
+    """
+    accepts a string or Path object to this books storage location. if different
+    from the current location, the data from new location is loaded
+    """
+    new_folder = Path().cwd() / Path(new_folder).expanduser()
+    if new_folder != self._folder:
+      self._folder = new_folder
+      self.load()
+  
+  def load(self):
+    """
+    loads all config/data from the folder
+    """
+    # load configuration
+    try:
+      with (self._folder / "config.yaml").open() as fp:
+        config = yaml.safe_load(fp)
+    except FileNotFoundError:
+      logger.warning(f"{self._folder} doesn't contain config.yaml")
+      config = { "sheets" : {} }
+    
+    # load sheets
+    self._sheets = {}
+    if "sheets" in config:
+      for name, typename in config["sheets"].items():
+        try:
+          type = DEFAULT_SHEETS[typename]
+          with (self._folder / f"{name}.json").open() as fp:
+            self._sheets[name] = Sheet(json.load(fp, cls=ClassDecoder(type)), cls=type)
+        except FileNotFoundError:
+          logger.warning(f"could not find sheet {name}.json")
+
+    # ensure at least empty records and plans sheets are available
+    self._sheets = {
+      name : Sheet(cls=type) for name, type in DEFAULT_SHEETS.items()
+    } | self._sheets
+
+    self.sheet = DEFAULT_SHEET # after loading, make the "records" sheet active
+    return self
+    
+  def save(self):
+    """
+    save all config/data to the folder
+    """
+    # ensure the folder exists
+    self._folder.mkdir(parents=True, exist_ok=True)
+
+    # save configuration
+    with (self._folder / "config.yaml").open("w") as fp:
+      yaml.safe_dump(self.config, fp, indent=2, default_flow_style=False)
+
+    # save sheets
+    for name, sheet in self._sheets.items():
+      # save records
+      with (self._folder / f"{name}.json").open("w") as fp:
+        json.dump(sheet, fp, cls=ClassEncoder, indent=2)
+
+    return self
+
+  # record management
+
+  def add(self, *args, **kwargs):
+    """
+    add a record or plan using their arguments to the current sheet and save
+    """
+    record = self.sheet.add(*args, **kwargs)
+    self.save()
+    logger.info(f"added {record}")
+
+  def slurp(self, source=sys.stdin):
+    """
+    reads tab separated rows from source iterable, default is stdin, and
+    imports them as records
+    """
+    for line in source:
+      line = line.strip()
+      if not line:
+        break
+      self.add(*line.split("\t"))
+
+  # iterator support, making Book a list of what's on its current sheet
+
+  def __iter__(self):
+    return iter(self.sheet)
+
+  def __len__(self):
+    return len(self.sheet)
+
+  def __getitem__(self, index):
+    return self.sheet[index]
 
 class BalancedSheet:
   """
