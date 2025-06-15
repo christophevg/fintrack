@@ -5,13 +5,15 @@ from pathlib import Path
 import yaml
 import json
 
+from datetime import datetime
+
 from sortedcontainers import SortedList
 
 from slugify import slugify
 
 from fintrack.records import RecordLike, Record
-from fintrack.plans    import PlannedRecord
-from fintrack.utils   import asrow, ClassEncoder, ClassDecoder
+from fintrack.plans   import PlannedRecord
+from fintrack.utils   import asrow, ClassEncoder, ClassDecoder, parse_datetime
 
 import logging
 logger = logging.getLogger(__name__)
@@ -143,6 +145,7 @@ class Book:
     record = self.sheet.add(*args, **kwargs)
     self.save()
     logger.info(f"added {record}")
+    return record
 
   def slurp(self, source=sys.stdin):
     """
@@ -165,6 +168,17 @@ class Book:
 
   def __getitem__(self, index):
     return self.sheet[index]
+
+class CombinedSheet:
+  """
+  behaves as a Sheet, combining Records from other sheets.
+  """
+  def init(self, combinations):
+    """
+    a combination is defined by a sheet and filtering parameters
+    """
+    self._combinations = combinations
+  
 
 class BalancedSheet:
   """
@@ -259,6 +273,25 @@ class Sheet:
     new = self.__class__(self, cls=self.type)
     new.update(other)
     return new
+
+  def take(self, count=None, until=None, start=None):
+    """
+    generator that yields records matching criteria
+    """
+    if until and not isinstance(until, datetime):
+      until = parse_datetime(until)
+    if start and not isinstance(start, datetime):
+      start = parse_datetime(start)
+    yielded = 0
+    for record in self._records:
+      if start and record.timestamp < start:
+        continue
+      if until and record.timestamp > until:
+        continue
+      yield record
+      yielded += 1
+      if count and yielded >= count:
+        return
 
   def __iter__(self):
     for record in self._records:
