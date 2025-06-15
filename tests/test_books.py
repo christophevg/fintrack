@@ -1,5 +1,6 @@
-from fintrack.records import Record
 from fintrack.books import Sheet
+
+# Book
 
 # Sheet
 
@@ -15,7 +16,7 @@ def test_sheets_should_only_accept_correct_classes():
 
 def test_sheets_should_only_accept_correct_arguments_to_create_instances():
   try:
-    Sheet(Record).add("blah")
+    Sheet().add("blah")
     assert False, "sheets of Records shouldn't accept strings"
   except TypeError:
     pass

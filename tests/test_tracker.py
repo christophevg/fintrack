@@ -19,16 +19,16 @@ def test_init_and_using():
   assert Tracker(folder="/testing").using == Path("/testing")
   assert Tracker(folder="~/testing").using == Path("~/testing").expanduser()
 
-def test_use_and_using():
-  assert Tracker().use("testing").using == Path().cwd() / "testing"
-  assert Tracker().use("/testing").using == Path("/testing")
-  assert Tracker().use("~/testing").using == Path("~/testing").expanduser()
+def test_use_and_using(tmp_path):
+  assert Tracker(folder=tmp_path).use("testing").using == Path().cwd() / "testing"
+  assert Tracker(folder=tmp_path).use("/testing").using == Path("/testing")
+  assert Tracker(folder=tmp_path).use("~/testing").using == Path("~/testing").expanduser()
 
-def test_config():
-  assert Tracker().config == {
+def test_config(tmp_path):
+  assert Tracker(folder=tmp_path).config == {
     "sheets" : {
-      "plans"   : "plans",
-      "records" : "records"
+      "plans"   : "PlannedSheet",
+      "records" : "Sheet"
     }
   }
 
@@ -51,8 +51,8 @@ def test_save(tmp_path):
     config = yaml.safe_load(fp)
   assert config == {
     "sheets" : {
-      "plans"   : "plans",
-      "records" : "records"
+      "plans"   : "PlannedSheet",
+      "records" : "Sheet"
     }
   }
 
@@ -69,7 +69,7 @@ def test_load(tmp_path):
   with (tmp_path / "config.yaml").open("w") as fp:
     yaml.safe_dump({
       "sheets" : {
-        "records" : "records"
+        "records" : "Sheet"
       }
     }, fp)
   with (tmp_path / "records.json").open("w") as fp:
