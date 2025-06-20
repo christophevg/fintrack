@@ -63,11 +63,13 @@ class PlannedRecord(RecordLike):
     starting from start, or now if omitted, generates up to count Records and
     returns them as Records
     """
-    if start is None:
-      start = now()
-
     if until and not isinstance(until, datetime):
       until = parse_datetime(until)
+    if start and not isinstance(start, datetime):
+      start = parse_datetime(start)
+
+    if start is None:
+      start = now()
 
     r = RecurringEvent()
     event = r.parse(self.schedule)

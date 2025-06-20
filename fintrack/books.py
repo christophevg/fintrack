@@ -1,5 +1,7 @@
 import sys
 
+from dataclasses import dataclass
+
 from pathlib import Path
 
 import yaml
@@ -14,6 +16,7 @@ from slugify import slugify
 from fintrack.records import Record
 from fintrack.plans   import PlannedRecord
 from fintrack.utils   import asrow, ClassEncoder, ClassDecoder, parse_datetime
+from fintrack.utils   import all_subclasses
 
 import logging
 logger = logging.getLogger(__name__)
@@ -88,7 +91,7 @@ class Book:
   @property
   def types(self):
     subclasses = {
-      cls.__name__ : cls for cls in SheetLike.__subclasses__()
+      cls.__name__ : cls for cls in all_subclasses(SheetLike)
     }
     return subclasses
   
@@ -196,18 +199,106 @@ class Book:
 class SheetLike:
   """
   a sheet maintains a sorted collection of <records> of a implemented type prop
+  SheetLike is a baseclass with most Sheet functionality implemented, it only
+  requires the implementing class to provide a type property, implement __iter__
+  and the add() method
   """
-  def __init__(self, records=None, book=None):
-    self._book    = book
+  
+  @property
+  def type(self):
+    raise NotImplementedError(f"{self.__class__.__name__} needs to provide a type property")
+  
+  def __iter__(self):
+    raise NotImplementedError(f"{self.__class__.__name__} __iter__ needs to be implemented")
+
+  def __len__(self):
+    raise NotImplementedError(f"{self.__class__.__name__} __len__ needs to be implemented")
+  
+  def add(self, *args, **kwargs):
+    raise NotImplementedError(f"{self.__class__.__name__} add() needs to be implemented")
+
+  # list-like behavior based on add()
+
+  def update(self, other):
+    """
+    merges in record from other sheet
+    """
+    for record in other:
+      self.add(record)
+
+  def __add__(self, other):
+    """
+    constructs a new sheet with own and other sheet's records
+    """
+    new = self.__class__(self)
+    new.update(other)
+    return new
+
+  # list-like behavior based on iterator support
+
+  def __getitem__(self, index):
+    return list(self)[index]
+
+  # alternative iterator, with filtering capabilities
+
+  def take(self, count=None, until=None, start=None):
+    """
+    generator that yields records matching criteria
+    """
+    if until and not isinstance(until, datetime):
+      until = parse_datetime(until)
+    if start and not isinstance(start, datetime):
+      start = parse_datetime(start)
+    yielded = 0
+    for record in self:
+      if start and record.timestamp < start:
+        continue
+      if until and record.timestamp > until:
+        continue
+      yield record
+      yielded += 1
+      if count and yielded >= count:
+        return
+
+  # rows and columns
+
+  @property
+  def columns(self):
+    return self.type.columns
+
+  @property
+  def rows(self):
+    """
+    alternative iterator, providing records as lists of their properties 
+    """
+    for record in self:
+      yield asrow(record)
+
+class ImmutableSheetLike(SheetLike):
+  def add(self, *args, **kwargs):
+    raise TypeError(f"{self.__class__.__name__} is immutable")
+
+  def update(self, other):
+    raise TypeError(f"{self.__class__.__name__} is immutable")
+
+  def __add__(self, other):
+    raise TypeError(f"{self.__class__.__name__} is immutable")
+
+class Sheet(SheetLike):
+  """
+  a standard sheet, provides access to a list of records/rows
+  """
+
+  def __init__(self, records=None):
     self._records = SortedList()
     if records:
       self.update(records)
     self.balanced = BalancedSheet(self)
-  
+
   @property
   def type(self):
-    raise NotImplementedError("SheetLike needs to be implemented")
-  
+    return Record
+
   def add(self, *args, **kwargs):
     """
     add accepts a record of the correct type for this sheet, or a dict with the
@@ -225,69 +316,23 @@ class SheetLike:
       record = self.type(*args, **kwargs)
     self._records.add(record)
     return record
-  
-  @property
-  def columns(self):
-    return self.type.columns
-
-  @property
-  def rows(self):
-    """
-    alternative iterator, providing records as lists of their properties 
-    """
-    for record in self:
-      yield asrow(record)
-
-  def update(self, other):
-    """
-    merges in record from other sheet
-    """
-    for record in other:
-      self.add(record)
-
-  def __add__(self, other):
-    """
-    constructs a new sheet with own and other sheet's records
-    """
-    new = self.__class__(self)
-    new.update(other)
-    return new
-
-  def take(self, count=None, until=None, start=None):
-    """
-    generator that yields records matching criteria
-    """
-    if until and not isinstance(until, datetime):
-      until = parse_datetime(until)
-    if start and not isinstance(start, datetime):
-      start = parse_datetime(start)
-    yielded = 0
-    for record in self._records:
-      if start and record.timestamp < start:
-        continue
-      if until and record.timestamp > until:
-        continue
-      yield record
-      yielded += 1
-      if count and yielded >= count:
-        return
 
   def __iter__(self):
-    for record in self._records:
-      yield record
+    return iter(self._records)
 
   def __len__(self):
     return len(self._records)
 
   def __getitem__(self, index):
+    # optimization over the generic version on SheetLike
     return self._records[index]
 
-class Sheet(SheetLike):
-  @property
-  def type(self):
-    return Record
+class PlannedSheet(Sheet):
+  """
+  a PlanedSheet holds PlannedRecords and behaves as a Sheet, except for the take
+  method that unrolls the PlannedRecords into Records
+  """
 
-class PlannedSheet(SheetLike):
   @property
   def type(self):
     return PlannedRecord
@@ -296,35 +341,72 @@ class PlannedSheet(SheetLike):
     """
     generator that yields records matching criteria, after generating plans
     """
-    if until and not isinstance(until, datetime):
-      until = parse_datetime(until)
-    if start and not isinstance(start, datetime):
-      start = parse_datetime(start)
-    yielded = 0
-    for plan in self._records:
-      if count:
-        remaining=count-yielded
-      else:
-        remaining = None
-      for record in plan.take(count=remaining, until=until, start=start):
-        yield record
-        yielded += 1
-        if count and yielded >= count:
-          return
+    # first create a virtual sheet from all plans, ensuring cross-sheet ordering
+    records = Sheet()
+    for plan in self:
+      records.update(plan.take(count=count, until=until, start=start))
+    # and now take from that
+    return records.take(count=count, until=until, start=start)
 
-class CombinedSheet:
-  """
-  behaves as a Sheet, combining Records from other sheets.
-  """
-  def init(self, combinations):
+@dataclass
+class SheetExtract(ImmutableSheetLike):
+  sheet : SheetLike
+  # optional parameters to take
+  count : int      = None
+  until : datetime = None
+  start : datetime = None
+
+  def __post_init__(self):
     """
-    a combination is defined by a sheet and filtering parameters
+    we accept strings or datetimes, parsing them if needed
     """
-    self._combinations = combinations
+    if self.until is not None and not isinstance(self.until, datetime):
+      self.until = parse_datetime(self.until)
+    if self.start is not None and not isinstance(self.start, datetime):
+      self.start = parse_datetime(self.start)
+  
+  @property
+  def type(self):
+    return self.sheet.type
+  
+  def __iter__(self):
+    return self.take(count=self.count, until=self.until, start=self.start)
 
-  # TODO
+  def __len__(self):
+    # ugly ;-)
+    records = list(self.take(count=self.count, until=self.until, start=self.start))
+    return len(records)
 
-class BalancedSheet:
+  def take(self, count=None, until=None, start=None):
+    return self.sheet.take(count=count, until=until, start=start)
+
+class CombinedSheet(ImmutableSheetLike):
+  """
+  a SheetLike, combining extractions from other sheets.
+  """
+  def __init__(self, extracts):
+    """
+    a combined sheet 
+    """
+    self._extracts = extracts
+
+  @property
+  def type(self):
+    return Record
+
+  def __iter__(self):
+    """
+    creates a combination of all extracts and provides them as an iterable
+    """
+    combined = Sheet()
+    for sheet in self._extracts:
+      combined.update(sheet)
+    return iter(combined)
+
+  def __len__(self):
+    return sum( [ len(sheet) for sheet in self._extracts ] )
+
+class BalancedSheet(SheetLike):
   """
   wraps a sheet overriding rows and columns properties to include a balance
   """
